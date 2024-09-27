@@ -122,6 +122,9 @@ jobs:
           
       - run: ls -l /run/systemd/resolve/stub-resolv.conf
       - run: podman --version
+      - name: Build Container Image with Podman
+        run: |
+          podman build --log-level=debug -t my-app:latest .
   build:
     runs-on: ubuntu-24.04
     steps:
