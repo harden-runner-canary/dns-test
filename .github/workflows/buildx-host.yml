@@ -1,4 +1,4 @@
-name: Build Docker Image Locally
+name: Buildx host network
 
 on:
   workflow_dispatch:
