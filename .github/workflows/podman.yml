@@ -75,7 +75,7 @@ jobs:
           # Disable interface DNS
           sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
           # Add custom DNS servers
-          sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [127.0.0.1, 172.17.0.1]' /etc/netplan/50-cloud-init.yaml
+          sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [172.17.0.1]' /etc/netplan/50-cloud-init.yaml
           echo "Updated Netplan Configuration File:"
           sudo cat /etc/netplan/50-cloud-init.yaml
           # Apply netplan changes
