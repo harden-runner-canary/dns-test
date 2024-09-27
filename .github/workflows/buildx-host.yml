@@ -20,6 +20,29 @@ jobs:
             registry-1.docker.io:443
             registry.npmjs.org:443
 
+      - name: Remove DNS servers from Docker daemon.json and restart Docker
+        run: |
+          echo "Modifying /etc/docker/daemon.json to remove DNS servers..."
+          
+          # Check if the daemon.json file exists
+          if [ -f /etc/docker/daemon.json ]; then
+            # Remove the DNS entry from the file
+            sudo jq 'del(.dns)' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.tmp > /dev/null
+            
+            # Move the modified file back to the original location
+            sudo mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
+      
+            echo "DNS servers removed from /etc/docker/daemon.json."
+            cat /etc/docker/daemon.json
+          else
+            echo "File /etc/docker/daemon.json does not exist. Skipping modification."
+          fi
+          
+          # Restart Docker to apply changes
+          echo "Restarting Docker service..."
+          sudo systemctl restart docker
+          echo "Docker service restarted."
+          
       - name: Update Netplan Configuration File Using sed
         run: |
           echo "Updating Netplan Configuration File with sed..."
