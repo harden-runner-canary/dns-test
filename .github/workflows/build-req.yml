@@ -1,0 +1,124 @@
+name: Build Docker Image Locally
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          allowed-endpoints: >
+            auth.docker.io:443
+            deb.debian.org:80
+            github.com:443
+            production.cloudflare.docker.com:443
+            registry-1.docker.io:443
+            registry.npmjs.org:443
+
+      - name: Update Netplan Configuration File Using sed
+        run: |
+          echo "Updating Netplan Configuration File with sed..."
+          # Disable interface DNS
+          sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
+          # Add custom DNS servers
+          sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [172.17.0.1]' /etc/netplan/50-cloud-init.yaml
+          echo "Updated Netplan Configuration File:"
+          sudo cat /etc/netplan/50-cloud-init.yaml
+          # Apply netplan changes
+          sudo netplan apply
+
+      - name: Print Netplan Configuration Files
+        run: |
+          echo "Netplan Configuration Files:"
+          for file in /etc/netplan/*.yaml; do
+            echo "File: $file"
+            sudo cat "$file"
+          done
+
+      - name: Disable Stub Resolver, Set Custom DNS Servers, and Remove Existing Nameservers
+        run: |
+          echo "Disabling Stub Resolver, Setting Custom DNS Servers, and Removing Existing Nameservers..."
+          # Disable DNSStubListener
+          sudo sed -i 's/^#DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+          if ! grep -q '^DNSStubListener=' /etc/systemd/resolved.conf; then
+            echo 'DNSStubListener=no' | sudo tee -a /etc/systemd/resolved.conf
+          fi
+          
+          # Remove any existing nameservers
+          sudo sed -i '/^DNS=/d' /etc/systemd/resolved.conf
+          
+          # Add custom DNS servers
+          #echo 'DNS=127.0.0.1 172.17.0.1' | sudo tee -a /etc/systemd/resolved.conf
+          
+          # Restart systemd-resolved to apply changes
+          sudo systemctl restart systemd-resolved
+          
+          # Update /etc/resolv.conf symbolic link
+          sudo rm /etc/resolv.conf
+          sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+          
+          # Verify the changes
+          echo "Current /etc/resolv.conf:"
+          cat /etc/resolv.conf
+          
+          echo "systemd-resolved status:"
+          systemctl status systemd-resolved
+          
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate requirements.txt
+        run: |
+          echo "Generating requirements.txt..."
+          cat <<EOF > requirements.txt
+          flask==2.1.1
+          requests==2.27.1
+          pandas==1.4.1
+          numpy==1.22.3
+          gunicorn==20.1.0
+          EOF
+
+      - name: Create Dockerfile
+        run: |
+          echo "Creating Dockerfile..."
+          cat <<EOF > Dockerfile
+          # Use an official Python runtime as the base image
+          FROM python:3.9-slim
+          
+          # Set the working directory in the container
+          WORKDIR /app
+          
+          # Copy the requirements.txt file into the container
+          COPY requirements.txt .
+          
+          # Install the dependencies
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Copy the rest of the application code
+          COPY . .
+          
+          # Expose the port the app runs on
+          EXPOSE 5000
+          
+          # Command to run the application
+          CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+          EOF
+
+      - name: Build Docker Image Locally
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: local-build:latest
