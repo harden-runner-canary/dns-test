@@ -1,0 +1,166 @@
+name: Set up Local Kubernetes with k3d and containerd
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-k8s:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            auth.docker.io:443
+            dl-cdn.alpinelinux.org:443
+            ghcr.io:443
+            github.com:443
+            objects.githubusercontent.com:443
+            pkg-containers.githubusercontent.com:443
+            production.cloudflare.docker.com:443
+            raw.githubusercontent.com:443
+            registry-1.docker.io:443
+
+      - name: Update Netplan Configuration File Using sed
+        run: |
+          echo "Updating Netplan Configuration File with sed..."
+          # Disable interface DNS
+          sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
+          # Add custom DNS servers
+          sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [172.17.0.1]' /etc/netplan/50-cloud-init.yaml
+          echo "Updated Netplan Configuration File:"
+          sudo cat /etc/netplan/50-cloud-init.yaml
+          # Apply netplan changes
+          sudo netplan apply
+
+      - name: Print Netplan Configuration Files
+        run: |
+          echo "Netplan Configuration Files:"
+          for file in /etc/netplan/*.yaml; do
+            echo "File: $file"
+            sudo cat "$file"
+          done
+
+      - name: Disable Stub Resolver, Set Custom DNS Servers, and Remove Existing Nameservers
+        run: |
+          echo "Disabling Stub Resolver, Setting Custom DNS Servers, and Removing Existing Nameservers..."
+          # Disable DNSStubListener
+          sudo sed -i 's/^#DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+          if ! grep -q '^DNSStubListener=' /etc/systemd/resolved.conf; then
+            echo 'DNSStubListener=no' | sudo tee -a /etc/systemd/resolved.conf
+          fi
+          
+          # Remove any existing nameservers
+          sudo sed -i '/^DNS=/d' /etc/systemd/resolved.conf
+          
+          # Add custom DNS servers
+          #echo 'DNS=127.0.0.1 172.17.0.1' | sudo tee -a /etc/systemd/resolved.conf
+          
+          # Restart systemd-resolved to apply changes
+          sudo systemctl restart systemd-resolved
+          
+          # Update /etc/resolv.conf symbolic link
+          sudo rm /etc/resolv.conf
+          sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+          
+          # Verify the changes
+          echo "Current /etc/resolv.conf:"
+          cat /etc/resolv.conf
+          
+          echo "systemd-resolved status:"
+          systemctl status systemd-resolved
+          sudo systemctl restart docker
+      
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Install k3d (lightweight wrapper to run K3s in Docker)
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      # Create a Kubernetes cluster using k3d
+      - name: Create k3d cluster
+        run: |
+          k3d --version
+          k3d cluster create mycluster --wait --verbose
+          k3d cluster list  # List the clusters to ensure it's up and running
+
+      # Verify Kubernetes cluster is up and running
+      - name: Verify connection to cluster
+        run: kubectl get nodes
+
+      - name: Create deployment.yml
+        run: |
+          echo "Creating deployment.yml..."
+          cat <<EOF > k8s/deployment.yml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx-deployment
+            labels:
+              app: nginx
+          spec:
+            replicas: 2  # Number of replicas
+            selector:
+              matchLabels:
+                app: nginx
+            template:
+              metadata:
+                labels:
+                  app: nginx
+              spec:
+                containers:
+                - name: nginx
+                  image: nginx:latest
+                  ports:
+                  - containerPort: 80
+                - name: curl-sidecar  # Sidecar container to generate outbound traffic
+                  image: alpine
+                  command: ["sh", "-c", "apk add --no-cache curl && while true; do echo 'Making a request...'; curl -v https://www.google.com || echo 'Curl failed'; sleep 30; done"]
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: nginx-service
+          spec:
+            selector:
+              app: nginx
+            ports:
+              - protocol: TCP
+                port: 80
+                targetPort: 80
+            type: LoadBalancer  # Use ClusterIP for internal, LoadBalancer for external access
+          EOF
+
+      - name: Apply Kubernetes deployment
+        run: |
+          kubectl apply -f k8s/deployment.yml  # Apply the deployment YAML
+
+      - name: Check Deployment Status
+        run: |
+          kubectl rollout status deployment/nginx-deployment  # Check rollout status
+
+      # Check pods using containerd runtime
+      - name: Check pods running in containerd
+        run: |
+          kubectl get pods -o=jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].containerID}{"\n"}{end}'
+
+      - name: Get nginx pod name
+        id: getpod
+        run: |
+          POD_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].metadata.name}")
+          echo "POD_NAME=${POD_NAME}"
+          echo "::set-output name=podname::${POD_NAME}"
+
+      - name: Check /etc/resolv.conf in curl-sidecar container
+        run: |
+          kubectl exec -it ${{ steps.getpod.outputs.podname }} -c curl-sidecar -- cat /etc/resolv.conf
+
+      - name: Print k3s server logs
+        run: |
+           docker logs k3d-mycluster-server-0
+           docker exec k3d-mycluster-server-0 cat /etc/resolv.conf
+           docker inspect k3d-mycluster-server-0 | grep -i networkmode
