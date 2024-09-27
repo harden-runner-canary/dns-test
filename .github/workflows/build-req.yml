@@ -68,6 +68,7 @@ jobs:
           
           echo "systemd-resolved status:"
           systemctl status systemd-resolved
+          sudo systemctl restart docker
           
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
