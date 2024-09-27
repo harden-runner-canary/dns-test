@@ -112,8 +112,7 @@ jobs:
       - run: ls -l /run/systemd/resolve/stub-resolv.conf
       - run: podman --version
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+      
 
       - run: cat /run/systemd/resolve/stub-resolv.conf
       
