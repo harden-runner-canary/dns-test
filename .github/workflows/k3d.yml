@@ -95,6 +95,7 @@ jobs:
       - name: Create deployment.yml
         run: |
           echo "Creating deployment.yml..."
+          mkdir -p k8s
           cat <<EOF > k8s/deployment.yml
           apiVersion: apps/v1
           kind: Deployment
