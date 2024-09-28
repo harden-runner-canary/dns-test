@@ -68,12 +68,79 @@ jobs:
           registry-1.docker.io:443
           storage.googleapis.com:443
     
-    #- name: Run iptables commands to delete rules
-    #  run: |
-    #    sudo iptables -D OUTPUT -o eth0 -p udp --dport 53 -d 168.63.129.16 -j DROP
-    #    sudo iptables -D DOCKER-USER -i docker0 -p udp --dport 53 -d 168.63.129.16 -j DROP
     
-   
+    - name: Remove DNS servers from Docker daemon.json and restart Docker
+      run: |
+        echo "Modifying /etc/docker/daemon.json to remove DNS servers..."
+        
+        # Check if the daemon.json file exists
+        if [ -f /etc/docker/daemon.json ]; then
+          # Remove the DNS entry from the file
+          sudo jq 'del(.dns)' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.tmp > /dev/null
+          
+          # Move the modified file back to the original location
+          sudo mv /etc/docker/daemon.json.tmp /etc/docker/daemon.json
+    
+          echo "DNS servers removed from /etc/docker/daemon.json."
+          cat /etc/docker/daemon.json
+        else
+          echo "File /etc/docker/daemon.json does not exist. Skipping modification."
+        fi
+        
+        # Restart Docker to apply changes
+        echo "Restarting Docker service..."
+        sudo systemctl restart docker
+        echo "Docker service restarted."
+
+    - name: Update Netplan Configuration File Using sed
+      run: |
+        echo "Updating Netplan Configuration File with sed..."
+        # Disable interface DNS
+        sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
+        # Add custom DNS servers
+        sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [127.0.0.1,172.17.0.1]' /etc/netplan/50-cloud-init.yaml
+        echo "Updated Netplan Configuration File:"
+        sudo cat /etc/netplan/50-cloud-init.yaml
+        # Apply netplan changes
+        sudo netplan apply
+
+    - name: Print Netplan Configuration Files
+      run: |
+        echo "Netplan Configuration Files:"
+        for file in /etc/netplan/*.yaml; do
+          echo "File: $file"
+          sudo cat "$file"
+        done
+
+    - name: Disable Stub Resolver, Set Custom DNS Servers, and Remove Existing Nameservers
+      run: |
+        echo "Disabling Stub Resolver, Setting Custom DNS Servers, and Removing Existing Nameservers..."
+        # Disable DNSStubListener
+        sudo sed -i 's/^#DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+        if ! grep -q '^DNSStubListener=' /etc/systemd/resolved.conf; then
+          echo 'DNSStubListener=no' | sudo tee -a /etc/systemd/resolved.conf
+        fi
+        
+        # Remove any existing nameservers
+        sudo sed -i '/^DNS=/d' /etc/systemd/resolved.conf
+        
+        # Add custom DNS servers
+        #echo 'DNS=127.0.0.1 172.17.0.1' | sudo tee -a /etc/systemd/resolved.conf
+        
+        # Restart systemd-resolved to apply changes
+        sudo systemctl restart systemd-resolved
+        
+        # Update /etc/resolv.conf symbolic link
+        sudo rm /etc/resolv.conf
+        sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+        
+        # Verify the changes
+        echo "Current /etc/resolv.conf:"
+        cat /etc/resolv.conf
+        
+        echo "systemd-resolved status:"
+        systemctl status systemd-resolved
+        sudo systemctl restart docker   
     - run: cat /run/systemd/resolve/resolv.conf
     - name: setup-kind
       uses: chainguard-dev/actions/setup-kind@main
