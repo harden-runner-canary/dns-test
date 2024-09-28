@@ -27,4 +27,6 @@ jobs:
       - run: sudo iptables -t nat -L -v -n
         if: ${{ always() }}
         
-  
+      - name: print logs
+        if: always()
+        run: sudo cat /tmp/tracer.log
