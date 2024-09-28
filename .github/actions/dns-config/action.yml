@@ -71,6 +71,7 @@ runs:
         echo "systemd-resolved status:"
         systemctl status systemd-resolved
         sudo systemctl restart docker
+        sudo iptables -D OUTPUT -o eth0 -p udp --dport 53 -j DROP
       shell: bash
 
    
