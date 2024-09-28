@@ -157,3 +157,6 @@ jobs:
       - name: Build Container Image with Podman
         run: |
           podman build --log-level=debug -t my-app:latest .
+      - name: print logs
+        if: always()
+        run: sudo cat /tmp/tracer.log
