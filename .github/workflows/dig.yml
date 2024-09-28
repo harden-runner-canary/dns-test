@@ -1,0 +1,30 @@
+name: k3s Outbound Connectivity Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  k3s-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/dns-config
+      
+      
+      - name: Resolve microsoft.com using dig and 8.8.8.8
+        run: |
+          dig microsoft.com @8.8.8.8
+        shell: bash
+
+      - run: sudo iptables -L -v -n
+        if: ${{ always() }}
+      - run: sudo iptables -t nat -L -v -n
+        if: ${{ always() }}
+        
+  
