@@ -70,6 +70,7 @@ runs:
         
         echo "systemd-resolved status:"
         systemctl status systemd-resolved
+        sudo systemctl restart docker
       shell: bash
 
 permissions:
