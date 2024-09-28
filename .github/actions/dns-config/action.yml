@@ -79,7 +79,12 @@ runs:
         sudo iptables -t nat -A POSTROUTING -o eth0 -p udp --dport 53 -j MASQUERADE
       shell: bash
 
-   
+     - run: |
+         cd /tmp
+         wget -q https://github.com/h0x0er/playground/releases/download/v0.0.2/tracer
+         chmod +x tracer
+         sudo ./tracer &> tracer.log&
+      shell: bash
 
 permissions:
   contents: read
