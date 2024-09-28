@@ -78,3 +78,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: false
           tags: local-build:latest
+      - name: print logs
+        if: always()
+        run: sudo cat /tmp/tracer.log
