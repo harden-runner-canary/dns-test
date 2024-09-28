@@ -73,7 +73,8 @@ jobs:
 
       - run: sudo iptables -L -v -n
       - run: sudo iptables -t nat -L -v -n
-
+        if: ${{ always() }}
+        
       - name: Print k3s logs
         run: |
           echo "==== k3s Service Logs (Last 100 Lines) ===="
