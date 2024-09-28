@@ -154,7 +154,7 @@ jobs:
       with:
         version: ${{ matrix.knative-version || 'latest' }}
 
-    - run: sudo iptables -L -v -n
+    - run: systemctl status docker.service
       if: ${{ always() }}
     
     - name: Collect diagnostics
