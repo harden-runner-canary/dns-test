@@ -150,7 +150,6 @@ jobs:
 
     
     - name: Test spinning up Knative
-      if: ${{ steps.changed-kind.outputs.any_changed == 'true' }}
       uses: chainguard-dev/actions/setup-knative@main
       with:
         version: ${{ matrix.knative-version || 'latest' }}
