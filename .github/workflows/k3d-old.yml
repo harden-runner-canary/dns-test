@@ -58,7 +58,7 @@ jobs:
 
       - name: Verify outbound connectivity
         run: |
-          kubectl exec test-pod -- curl -I https://www.google.com
+          kubectl exec test-pod -- curl -I https://www.pastebin.com
 
       - name: Check pod logs
         run: kubectl logs test-pod
