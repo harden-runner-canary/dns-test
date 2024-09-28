@@ -1,4 +1,4 @@
-name: k3s Outbound Connectivity Test
+name: Dig via 8.8.8.8
 
 on:
   workflow_dispatch:
