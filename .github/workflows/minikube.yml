@@ -35,4 +35,6 @@ jobs:
           sleep 5
           kubectl wait --for=condition=Ready -n cert-manager --all pods --timeout=60s
 
-  
+      - name: print logs
+        if: always()
+        run: sudo cat /tmp/tracer.log
