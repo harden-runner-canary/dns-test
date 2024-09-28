@@ -88,9 +88,9 @@ jobs:
         fi
         
         # Restart Docker to apply changes
-        echo "Restarting Docker service..."
-        sudo systemctl restart docker
-        echo "Docker service restarted."
+        #echo "Restarting Docker service..."
+        #sudo systemctl restart docker
+        #echo "Docker service restarted."
 
     - name: Update Netplan Configuration File Using sed
       run: |
