@@ -77,7 +77,7 @@ runs:
       run: |
         # Redirect all UDP DNS traffic (port 53) on eth0 to 127.0.0.1:53
         # Exclude traffic from or to 127.0.0.1
-        sudo iptables -t nat -A OUTPUT -o eth0 -p udp --dport 53 ! -d 127.0.0.1 ! -s 127.0.0.1 -j DNAT --to-destination 127.0.0.1
+        sudo iptables -t nat -A OUTPUT -o eth0 -p udp --dport 53 ! -d 127.0.0.1 ! -s 127.0.0.1 -j DNAT --to-destination 127.0.0.1:53
         
         # Verify the rule has been added
         sudo iptables -t nat -L OUTPUT -v -n
