@@ -7,57 +7,6 @@ jobs:
   build-block:
     runs-on: ubuntu-24.04
     steps:
-
-      - name: Create package.json
-        run: |
-          echo "Creating package.json..."
-          cat <<EOF > package.json
-          {
-            "name": "my-app",
-            "version": "1.0.0",
-            "description": "A simple Node.js app",
-            "main": "index.js",
-            "scripts": {
-              "start": "node index.js"
-            },
-            "dependencies": {
-              "express": "^4.17.1",
-              "dotenv": "^10.0.0",
-              "cors": "^2.8.5",
-              "mongoose": "^6.0.12",
-              "morgan": "^1.10.0"
-            },
-            "author": "Your Name",
-            "license": "ISC"
-          }
-          EOF
-
-      - name: Create Dockerfile
-        run: |
-          echo "Creating Dockerfile..."
-          cat <<EOF > Dockerfile
-          # Use an official Node.js runtime as the base image
-          FROM node:18-alpine
-          RUN cat /etc/resolv.conf
-          # Set the working directory in the container
-          WORKDIR /app
-
-          # Copy the package.json and package-lock.json if available
-          COPY package*.json ./
-
-          # Install the dependencies
-          RUN npm install
-
-          # Copy the rest of the application code
-          COPY . .
-
-          # Expose the port the app runs on
-          EXPOSE 3000
-
-          # Command to run the application
-          CMD ["npm", "start"]
-          EOF
-
       - name: Harden Runner
         uses: step-security/harden-runner@v2
         with:
@@ -71,18 +20,10 @@ jobs:
             registry.npmjs.org:443
       
       
-
-          
+         
       - uses: actions/checkout@v3
       - uses: ./.github/actions/dns-config
-      - run: podman --version
-      - name: Build Container Image with Podman
-        run: |
-          podman build --log-level=debug -t my-app:latest .
-  build:
-    runs-on: ubuntu-24.04
-    steps:
-
+      
       - name: Create package.json
         run: |
           echo "Creating package.json..."
@@ -133,6 +74,14 @@ jobs:
           CMD ["npm", "start"]
           EOF
 
+      
+      - run: podman --version
+      - name: Build Container Image with Podman
+        run: |
+          podman build --log-level=debug -t my-app:latest .
+  build:
+    runs-on: ubuntu-24.04
+    steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
         with:
@@ -144,57 +93,61 @@ jobs:
             production.cloudflare.docker.com:443
             registry-1.docker.io:443
       
-      - name: Update Netplan Configuration File Using sed
+              
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/dns-config
+      
+      - name: Create package.json
         run: |
-          echo "Updating Netplan Configuration File with sed..."
-          # Disable interface DNS
-          sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
-          # Add custom DNS servers
-          sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [172.17.0.1]' /etc/netplan/50-cloud-init.yaml
-          echo "Updated Netplan Configuration File:"
-          sudo cat /etc/netplan/50-cloud-init.yaml
-          # Apply netplan changes
-          sudo netplan apply
+          echo "Creating package.json..."
+          cat <<EOF > package.json
+          {
+            "name": "my-app",
+            "version": "1.0.0",
+            "description": "A simple Node.js app",
+            "main": "index.js",
+            "scripts": {
+              "start": "node index.js"
+            },
+            "dependencies": {
+              "express": "^4.17.1",
+              "dotenv": "^10.0.0",
+              "cors": "^2.8.5",
+              "mongoose": "^6.0.12",
+              "morgan": "^1.10.0"
+            },
+            "author": "Your Name",
+            "license": "ISC"
+          }
+          EOF
 
-      - name: Print Netplan Configuration Files
+      - name: Create Dockerfile
         run: |
-          echo "Netplan Configuration Files:"
-          for file in /etc/netplan/*.yaml; do
-            echo "File: $file"
-            sudo cat "$file"
-          done
+          echo "Creating Dockerfile..."
+          cat <<EOF > Dockerfile
+          # Use an official Node.js runtime as the base image
+          FROM node:18-alpine
+          RUN cat /etc/resolv.conf
+          # Set the working directory in the container
+          WORKDIR /app
 
-      - name: Disable Stub Resolver, Set Custom DNS Servers, and Remove Existing Nameservers
-        run: |
-          echo "Disabling Stub Resolver, Setting Custom DNS Servers, and Removing Existing Nameservers..."
-          # Disable DNSStubListener
-          sudo sed -i 's/^#DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
-          if ! grep -q '^DNSStubListener=' /etc/systemd/resolved.conf; then
-            echo 'DNSStubListener=no' | sudo tee -a /etc/systemd/resolved.conf
-          fi
-          
-          # Remove any existing nameservers
-          sudo sed -i '/^DNS=/d' /etc/systemd/resolved.conf
-          
-          # Add custom DNS servers
-          #echo 'DNS=127.0.0.1 172.17.0.1' | sudo tee -a /etc/systemd/resolved.conf
-          
-          # Restart systemd-resolved to apply changes
-          sudo systemctl restart systemd-resolved
-          
-          # Update /etc/resolv.conf symbolic link
-          sudo rm /etc/resolv.conf
-          sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
-          
-          # Verify the changes
-          echo "Current /etc/resolv.conf:"
-          cat /etc/resolv.conf
-          
-          echo "systemd-resolved status:"
-          systemctl status systemd-resolved
+          # Copy the package.json and package-lock.json if available
+          COPY package*.json ./
 
-          
-      - run: ls -l /run/systemd/resolve/stub-resolv.conf
+          # Install the dependencies
+          RUN npm install
+
+          # Copy the rest of the application code
+          COPY . .
+
+          # Expose the port the app runs on
+          EXPOSE 3000
+
+          # Command to run the application
+          CMD ["npm", "start"]
+          EOF
+
+     
       - run: podman --version
 
       
