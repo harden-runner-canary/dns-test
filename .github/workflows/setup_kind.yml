@@ -1,0 +1,98 @@
+name: setup-kind
+
+on:
+  workflow_dispatch:
+  
+defaults:
+  run:
+    shell: bash
+    working-directory: ./
+
+concurrency:
+  group: test-github-action${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-github-action:
+    name: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Keep running if one leg fails.
+      matrix:
+        k8s-version:
+        - 1.25.x
+        - 1.26.x
+        - 1.27.x
+        - 1.28.x
+        - 1.29.x
+        - 1.30.x
+
+        # See https://github.com/chainguard-dev/actions/pull/175
+        # We're testing whether setting a custom cluster domain works
+        cluster-suffix:
+        - cluster.local # default value
+        - potato.local
+
+        include: 
+        - k8s-version: 1.25.x
+          knative-version: 1.11.0          
+        - k8s-version: 1.26.x
+          knative-version: 1.12.0
+        - k8s-version: 1.27.x
+          knative-version: 1.13.0
+        - k8s-version: 1.28.x
+          knative-version: 1.13.0
+        - k8s-version: 1.29.x
+          knative-version: 1.13.0
+        - k8s-version: 1.30.x
+          knative-version: 1.13.0
+
+    steps:
+    - uses: step-security/harden-runner@v2
+      with:
+        egress-policy: audit
+        allowed-endpoints: >
+          9236a389bd48b984df91adc1bc924620.r2.cloudflarestorage.com:443
+          api.github.com:443
+          auth.docker.io:443
+          cdn03.quay.io:443
+          cgr.dev:443
+          gcr.io:443
+          github.com:443
+          mirror.gcr.io:443
+          objects.githubusercontent.com:443
+          packages.wolfi.dev:443
+          production.cloudflare.docker.com:443
+          quay.io:443
+          raw.githubusercontent.com:443
+          registry-1.docker.io:443
+          storage.googleapis.com:443
+    
+    #- name: Run iptables commands to delete rules
+    #  run: |
+    #    sudo iptables -D OUTPUT -o eth0 -p udp --dport 53 -d 168.63.129.16 -j DROP
+    #    sudo iptables -D DOCKER-USER -i docker0 -p udp --dport 53 -d 168.63.129.16 -j DROP
+    
+   
+    - run: cat /run/systemd/resolve/resolv.conf
+    - name: setup-kind
+      uses: chainguard-dev/actions/setup-kind@main
+      with:
+        k8s-version: ${{ matrix.k8s-version }}
+        cluster-suffix: ${{ matrix.cluster-suffix }}
+
+    
+    - name: Test spinning up Knative
+      if: ${{ steps.changed-kind.outputs.any_changed == 'true' }}
+      uses: chainguard-dev/actions/setup-knative@main
+      with:
+        version: ${{ matrix.knative-version || 'latest' }}
+
+    - run: sudo iptables -L -v -n
+      if: ${{ always() }}
+    
+    - name: Collect diagnostics
+      if: ${{ failure() }}
+      uses: chainguard-dev/actions/kind-diag@main
+      with:
+        artifact-name: logs.${{ matrix.k8s-version }}
