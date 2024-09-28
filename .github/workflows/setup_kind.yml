@@ -93,5 +93,5 @@ jobs:
       with:
         artifact-name: logs.${{ matrix.k8s-version }}
     - name: print logs
-        if: always()
-        run: sudo cat /tmp/tracer.log
+      if: always()
+      run: sudo cat /tmp/tracer.log
