@@ -21,6 +21,7 @@ runs:
         else
           echo "File /etc/docker/daemon.json does not exist. Skipping modification."
         fi
+      shell: bash
 
     - name: Update Netplan Configuration File Using sed
       run: |
@@ -33,6 +34,7 @@ runs:
         sudo cat /etc/netplan/50-cloud-init.yaml
         # Apply netplan changes
         sudo netplan apply
+      shell: bash
 
     - name: Print Netplan Configuration Files
       run: |
@@ -41,6 +43,7 @@ runs:
           echo "File: $file"
           sudo cat "$file"
         done
+      shell: bash
 
     - name: Disable Stub Resolver, Set Custom DNS Servers, and Remove Existing Nameservers
       run: |
@@ -67,6 +70,7 @@ runs:
         
         echo "systemd-resolved status:"
         systemctl status systemd-resolved
+      shell: bash
 
 permissions:
   contents: read
