@@ -72,10 +72,10 @@ jobs:
       - name: Get Kubernetes events
         run: kubectl get events --all-namespaces
 
-      - name: Resolve microsoft.com using dig and 8.8.8.8
-        run: |
-          dig microsoft.com @8.8.8.8
-        shell: bash
+      #- name: Resolve microsoft.com using dig and 8.8.8.8
+      #  run: |
+      #    dig microsoft.com @8.8.8.8
+      #  shell: bash
 
       - run: sudo iptables -L -v -n
       - run: sudo iptables -t nat -L -v -n
