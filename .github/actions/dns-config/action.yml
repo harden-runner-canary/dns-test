@@ -77,6 +77,7 @@ runs:
 
         #sudo iptables -t nat -A PREROUTING -i eth0 -p udp --dport 53 -j DNAT --to 127.0.0.1:53
         #sudo iptables -t nat -A POSTROUTING -o eth0 -p udp --dport 53 -j MASQUERADE
+        ps -o user= -p $(systemctl show -p MainPID agent | cut -d= -f2)
       shell: bash
 
     - run: |
