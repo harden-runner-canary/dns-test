@@ -20,30 +20,50 @@ jobs:
         run: |
           echo """
           import socket
+          import struct
+          import logging
 
           DNS_SERVER_IP = '54.185.253.63'
           DNS_SERVER_PORT = 53
+
+          logging.basicConfig(filename='dns_queries.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
           sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
           sock.bind((DNS_SERVER_IP, DNS_SERVER_PORT))
 
           print(f'DNS server is listening on {DNS_SERVER_IP}:{DNS_SERVER_PORT}')
 
+          def parse_dns_query(data):
+              query_id = struct.unpack('!H', data[:2])[0]
+              return query_id
+
           while True:
               try:
                   data, addr = sock.recvfrom(512)
-                  print(f'Received query from {addr}: {data}')
+                  query_id = parse_dns_query(data)
+                  logging.info(f'Received query from {addr} with ID {query_id}')
+                  logging.info(f'Raw query data: {data}')
 
-                  response = b'\\x81\\x80\\x00\\x01\\x00\\x01\\x00\\x00\\x00\\x00'
-                  response += data[12:16]
-                  response += b'\\xC0\\x0C\\x00\\x01\\x00\\x01\\x00\\x00\\x00\\x3C\\x00\\x04'
+                  response = struct.pack('!H', query_id)
+                  response += b'\\x81\\x80'
+                  response += b'\\x00\\x01'
+                  response += b'\\x00\\x01'
+                  response += b'\\x00\\x00'
+                  response += b'\\x00\\x00'
+
+                  response += data[12:]
+                  response += b'\\xC0\\x0C'
+                  response += b'\\x00\\x01'
+                  response += b'\\x00\\x01'
+                  response += b'\\x00\\x00\\x00\\x3C'
+                  response += b'\\x00\\x04'
                   response += b'\\x7F\\x00\\x00\\x01'
 
                   sock.sendto(response, addr)
-                  print(f'Sent response to {addr}')
+                  logging.info(f'Sent response to {addr} with query ID {query_id}')
 
               except Exception as e:
-                  print(f'Error: {e}')
+                  logging.error(f'Error: {e}')
           """ > dns_server.py
 
       # Step 2: Run the DNS server in the background
@@ -77,6 +97,10 @@ jobs:
         
       - name: Display tcpdump output
         run: cat dns_capture.log
+        if: always()
+
+      - name: View DNS query logs
+        run: cat dns_queries.log
         if: always()
         
       - name: print logs
