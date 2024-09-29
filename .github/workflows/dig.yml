@@ -26,6 +26,7 @@ jobs:
           sudo apt update
           sudo apt install traceroute
           sudo traceroute -U -p 53 54.185.253.63
+          echo "TEST" | nc -u -w1 54.185.253.63 53
           dig microsoft.com @54.185.253.63
         shell: bash
 
