@@ -20,7 +20,7 @@ jobs:
           ip route get 54.185.253.63
           ip addr show lo
           sudo netstat -tulnp | grep :53
-          sudo iptables -L -n | grep 53
+          sudo iptables -L -n 
       - name: Resolve microsoft.com using dig and 8.8.8.8
         run: |
           dig microsoft.com @54.185.253.63
