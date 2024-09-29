@@ -23,6 +23,8 @@ jobs:
           sudo iptables -L -n 
       - name: Resolve microsoft.com using dig and 8.8.8.8
         run: |
+          sudo apt update
+          sudo apt install traceroute
           sudo traceroute -U -p 53 54.185.253.63
           dig microsoft.com @54.185.253.63
         shell: bash
