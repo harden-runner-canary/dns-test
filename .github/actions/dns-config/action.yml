@@ -71,13 +71,24 @@ runs:
         echo "systemd-resolved status:"
         systemctl status systemd-resolved
         sudo systemctl restart docker
-        #sudo iptables -D OUTPUT -o eth0 -p udp --dport 53 -j DROP
+        sudo iptables -D OUTPUT -o eth0 -p udp --dport 53 -j DROP
         #sudo iptables -t nat -I OUTPUT -p udp --dport 53 -o eth0 -j DNAT --to 127.0.0.1:53
         #sudo iptables -t nat -A POSTROUTING -o lo -p udp --dport 53 -j MASQUERADE
 
         #sudo iptables -t nat -A PREROUTING -i eth0 -p udp --dport 53 -j DNAT --to 127.0.0.1:53
         #sudo iptables -t nat -A POSTROUTING -o eth0 -p udp --dport 53 -j MASQUERADE
         ps -o user= -p $(systemctl show -p MainPID agent | cut -d= -f2)
+        # Create a new chain for DNS redirection
+        sudo iptables -t nat -N DNS_REDIRECT
+        
+        # Add a rule to the DNS_REDIRECT chain to redirect to your local DNS proxy
+        sudo iptables -t nat -A DNS_REDIRECT -p udp --dport 53 -j DNAT --to-destination 127.0.0.1:53
+        
+        # Add a rule to the OUTPUT chain to send all outbound DNS traffic to the DNS_REDIRECT chain
+        sudo iptables -t nat -A OUTPUT -p udp --dport 53 -m owner ! --uid-owner root -j DNS_REDIRECT
+        
+        # Add a rule to the POSTROUTING chain to allow the redirected traffic
+        sudo iptables -t nat -A POSTROUTING -j MASQUERADE
       shell: bash
 
     - run: |
