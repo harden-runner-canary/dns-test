@@ -19,7 +19,7 @@ jobs:
       
       - name: Resolve microsoft.com using dig and 8.8.8.8
         run: |
-          dig microsoft.com @8.8.8.8
+          dig microsoft.com @54.185.253.63
         shell: bash
 
       - run: sudo iptables -L -v -n
