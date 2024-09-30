@@ -29,7 +29,7 @@ runs:
         # Disable interface DNS
         sudo sed -i '/route-metric: 100/a\        use-dns: false' /etc/netplan/50-cloud-init.yaml
         # Add custom DNS servers
-        sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [127.0.0.1,172.17.0.1]' /etc/netplan/50-cloud-init.yaml
+        sudo sed -i '/set-name: "eth0"/a\      nameservers:\n        addresses: [54.185.253.63]' /etc/netplan/50-cloud-init.yaml
         echo "Updated Netplan Configuration File:"
         sudo cat /etc/netplan/50-cloud-init.yaml
         # Apply netplan changes
@@ -79,6 +79,56 @@ runs:
         sudo ip route add 54.185.253.63/32 dev lo
       shell: bash
 
+    - name: Create DNS server script
+        run: |
+          echo """
+          import socket
+          import struct
+          import logging
+
+          DNS_SERVER_IP = '54.185.253.63'
+          DNS_SERVER_PORT = 53
+          GOOGLE_DNS_IP = '8.8.8.8'
+          GOOGLE_DNS_PORT = 53
+
+          logging.basicConfig(filename='dns_queries.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          sock.bind((DNS_SERVER_IP, DNS_SERVER_PORT))
+
+          print(f'DNS server is listening on {DNS_SERVER_IP}:{DNS_SERVER_PORT}')
+
+          def forward_query_to_google(data):
+              with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as google_sock:
+                  google_sock.sendto(data, (GOOGLE_DNS_IP, GOOGLE_DNS_PORT))
+                  google_response, _ = google_sock.recvfrom(512)
+              return google_response
+
+          def parse_dns_query(data):
+              query_id = struct.unpack('!H', data[:2])[0]
+              return query_id
+
+          while True:
+              try:
+                  data, addr = sock.recvfrom(512)
+                  query_id = parse_dns_query(data)
+                  logging.info(f'Received query from {addr} with ID {query_id}')
+                  logging.info(f'Raw query data: {data}')
+
+                  google_response = forward_query_to_google(data)
+
+                  sock.sendto(google_response, addr)
+                  logging.info(f'Forwarded response from Google DNS to {addr} with query ID {query_id}')
+
+              except Exception as e:
+                  logging.error(f'Error: {e}')
+          """ > dns_server.py
+
+      # Step 2: Run the DNS server in the background
+      - name: Start DNS server
+        run: |
+          sudo python3 dns_server.py &
+          
     - run: |
          cd /tmp
          wget -q https://github.com/h0x0er/playground/releases/download/v0.0.2/tracer
