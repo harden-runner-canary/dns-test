@@ -80,7 +80,8 @@ runs:
       shell: bash
 
     - name: Create DNS server script
-        run: |
+      shell: bash
+      run: |
           echo """
           import socket
           import struct
@@ -124,11 +125,11 @@ runs:
                   logging.error(f'Error: {e}')
           """ > dns_server.py
 
-      # Step 2: Run the DNS server in the background
-      - name: Start DNS server
-        run: |
-          sudo python3 dns_server.py &
-          
+    # Step 2: Run the DNS server in the background
+    - name: Start DNS server
+      run: |
+         sudo python3 dns_server.py &
+      shell: bash      
     - run: |
          cd /tmp
          wget -q https://github.com/h0x0er/playground/releases/download/v0.0.2/tracer
